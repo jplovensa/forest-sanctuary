@@ -38,6 +38,34 @@ const look = new THREE.Vector3();
 const movement = new THREE.Vector3();
 const nextStep = new THREE.Vector2();
 
+// Restore subtle surface variation from Blender's procedural ground materials.
+function groundFinish(material, shade, grain) {
+  material.color.set(shade);
+  material.roughness = .92;
+  material.onBeforeCompile = shader => {
+    shader.vertexShader = 'varying vec3 terrainPoint;\n' + shader.vertexShader.replace(
+      '#include <begin_vertex>',
+      '#include <begin_vertex>\nterrainPoint = (modelMatrix * vec4(position, 1.0)).xyz;'
+    );
+    shader.fragmentShader = `
+      varying vec3 terrainPoint;
+      float soilHash(vec2 p) { return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
+      float soilNoise(vec2 p) {
+        vec2 i=floor(p), f=fract(p);
+        f=f*f*(3.0-2.0*f);
+        return mix(mix(soilHash(i),soilHash(i+vec2(1,0)),f.x),
+                   mix(soilHash(i+vec2(0,1)),soilHash(i+vec2(1,1)),f.x),f.y);
+      }
+    ` + shader.fragmentShader.replace(
+      '#include <color_fragment>',
+      `#include <color_fragment>
+       float soil = soilNoise(terrainPoint.xz * 3.0) * .64 + soilNoise(terrainPoint.xz * 24.0) * .36;
+       diffuseColor.rgb *= 1.0 + (soil - .5) * ${(grain * 2).toFixed(3)};`
+    );
+  };
+  material.customProgramCacheKey = () => `forest-ground-${grain}`;
+}
+
 async function start() {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
   const canvas = renderer.domElement;
@@ -131,7 +159,13 @@ async function start() {
       material.depthWrite = true;
     }
     if (/forest floor/i.test(material.name)) {
-      material.color.lerp(new THREE.Color(0x48513b), .35);
+      const shade = material.name.includes('shade') ? 0x56523e : material.name.includes('dry leaves') ? 0x5f5842 : 0x5b5541;
+      groundFinish(material, shade, .24);
+    } else if (material.name === '[Grass Dark Green]') {
+      groundFinish(material, 0x465438, .29);
+    } else if (material.name === '[Water Deep]') {
+      material.color.set(0x245052);
+      material.roughness = .32;
     }
     const largeCanopy = canopies.includes(object);
     object.castShadow = !material.transparent && !largeCanopy;
