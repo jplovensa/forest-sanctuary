@@ -8,17 +8,18 @@ import { loadSurfaceMaps, styleMaterial } from './materials.js';
 import { addReflectingPool, addForestBreeze } from './atmosphere.js';
 import { prepareDoors } from './doors.js';
 import { prepareBedroomLights } from './bedroom-lights.js';
+import { rebuildFurniture } from './furniture.js';
 
 // Coordinates are in metres, converted from Blender's Z-up scene.
 const vector = ([x, y, z]) => new THREE.Vector3(x, z, -y);
 const stops = [
   { name: 'Forest Sanctuary', nav: 'Pool arrival', type: 'Arrival', desc: 'Five pavilions open onto a courtyard beneath a single canopy.', eye: [23.6,-6.6,6.9], at: [13.35,9.2,2.6], walk: [14,4.8,1.72] },
-  { name: 'The courtyard', nav: 'Tree courtyard', type: 'Courtyard', desc: 'An open-air lounge beside the reflection pool and the tree that rises through the roof.', eye: [15.6,5.5,2.45], at: [13.48,8.9,1.55], walk: [15.9,5.35,1.72] },
-  { name: 'Living & dining', nav: 'Living & dining', type: 'Pavilion 01', desc: 'Cane-backed dining chairs and a low lounge face the courtyard.', eye: [15.8,8.63,1.75], at: [13.58,10.53,1.12] },
+  { name: 'The courtyard', nav: 'Tree courtyard', type: 'Courtyard', desc: 'A teak lounge beside the reflection pool and the tree that rises through the roof.', eye: [15.6,5.5,2.45], at: [12.86,6.78,1.07], walk: [15.9,5.35,1.72] },
+  { name: 'Living & dining', nav: 'Living & dining', type: 'Pavilion 01', desc: 'Woven cane, oiled teak and a linen lounge face the courtyard.', eye: [15.8,8.63,1.75], at: [13.58,10.53,1.12] },
   { name: 'The kitchen', nav: 'Kitchen pavilion', type: 'Pavilion 02', desc: 'A concrete bar for two, a teak coffee recess and a separate cooking run.', eye: [23,6.18,2.08], at: [19.95,7.36,1.45] },
-  { name: 'West garden suite', nav: 'West garden suite', type: 'Pavilion 03', desc: 'A centred king bed looks through full-height glazing, with 969 mm clear at its foot.', eye: [9.05,10.44,1.99], at: [6.64,12.1,1.31] },
-  { name: 'East garden suite', nav: 'East garden suite', type: 'Pavilion 04', desc: 'A fluted teak headboard, stone bedside ledges and an uninterrupted garden view.', eye: [18.07,10.46,1.99], at: [20.48,12.1,1.31] },
-  { name: 'The bathing pavilion', nav: 'Bathing pavilion', type: 'Pavilion 05', desc: 'A stone soaking tub sits beside the glass shower and screened WC.', eye: [9.19,6.18,2.03], at: [6.25,7.39,1.35] },
+  { name: 'West garden suite', nav: 'West garden suite', type: 'Pavilion 03', desc: 'A linen-dressed king bed looks through full-height glazing into the forest.', eye: [9.05,10.44,1.99], at: [6.64,12.1,1.31] },
+  { name: 'East garden suite', nav: 'East garden suite', type: 'Pavilion 04', desc: 'A fluted teak headboard, travertine nightstands and an uninterrupted garden view.', eye: [18.07,10.46,1.99], at: [20.48,12.1,1.31] },
+  { name: 'The bathing pavilion', nav: 'Bathing pavilion', type: 'Pavilion 05', desc: 'A twin-basin teak vanity and a stone soaking tub share the bathing pavilion.', eye: [9.19,6.18,2.03], at: [7.32,7.63,1.35] },
 ];
 const lighting = {
   day: { sky: 0xa6b1a1, fill: 0xe2e9e3, soil: 0x9e9374, sun: 0xffead0, power: 2.65, hemi: 1.05, inside: 3.5, env: 0.78, exposure: 1.07, sunPosition: [-5,18,8] },
@@ -146,6 +147,7 @@ async function start() {
   for (const person of [...model.children]) {
     if (/guest/i.test(person.name) && person.name !== 'Living_Pavilion_-_Guest') person.removeFromParent();
   }
+  rebuildFurniture(model);
   model.updateMatrixWorld(true);
   scene.add(model);
   const { roof, canopies, slidingLeaves, ceiling, screen } = prepareVisibility(model);

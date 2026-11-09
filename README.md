@@ -29,7 +29,7 @@ gltfpack -i /tmp/forest-resized.glb -o assets/sanctuary.glb -cc -kn -km
 npm run check
 ```
 
-The browser model retains the source rooms, forest placements, guests, joinery, textures and courtyard layout. Browser lighting is configured in `app.js`. Third-party runtime licenses are in `vendor/`.
+The browser model supplies the rooms, courtyard, forest placements and architecture. The viewer builds the furniture in `furniture.js` over that model, including the upholstery, woven cane and cabinetry. Browser lighting is configured in `app.js`. Third-party runtime licenses are in `vendor/`.
 
 
 ## Surface and environment assets

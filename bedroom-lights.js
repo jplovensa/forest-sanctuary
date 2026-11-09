@@ -29,9 +29,9 @@ export function prepareBedroomLights(scene, model, updateShadow) {
     indicator.position.x = .017 * suite.normal;
     plate.add(body, indicator);
     scene.add(plate);
-    const emitters = [-1.0, 1.0].map(offset => {
+    const emitters = [-1.164, 1.164].map(offset => {
       const light = new PointLight(0xffb77b, 0, 4.8, 2);
-      light.position.set(suite.bed + offset, 1.79, -12.88);
+      light.position.set(suite.bed + offset, 1.56, -13.03);
       scene.add(light);
       return light;
     });
