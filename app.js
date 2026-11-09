@@ -8,7 +8,7 @@ import { loadSurfaceMaps, styleMaterial } from './materials.js';
 import { addReflectingPool, addForestBreeze } from './atmosphere.js';
 import { prepareDoors } from './doors.js';
 import { prepareBedroomLights } from './bedroom-lights.js';
-import { rebuildFurniture } from './furniture.js';
+import { rebuildFurniture } from './furniture.js?v=forest-suite-benches-1';
 
 // Coordinates are in metres, converted from Blender's Z-up scene.
 const vector = ([x, y, z]) => new THREE.Vector3(x, z, -y);

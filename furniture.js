@@ -364,10 +364,10 @@ export function rebuildFurniture(model, bedding) {
   diningSeats.forEach(([x, z, yaw], index) => item(`Living cane dining chair ${index + 1}`, [x, .207, z], diningChair, yaw));
 
   const suites = [
-    { side: 'West', bedX: 6.627, robeX: 4.22, dressingX: 9.117, stoolX: 8.627, benchX: 9.068, direction: 1 },
-    { side: 'East', bedX: 20.472, robeX: 22.88, dressingX: 17.983, stoolX: 18.473, benchX: 18.032, direction: -1 },
+    { side: 'West', bedX: 6.627, robeX: 4.22, dressingX: 9.117, stoolX: 8.627, direction: 1 },
+    { side: 'East', bedX: 20.472, robeX: 22.88, dressingX: 17.983, stoolX: 18.473, direction: -1 },
   ];
-  for (const { side, bedX, robeX, dressingX, stoolX, benchX, direction } of suites) {
+  for (const { side, bedX, robeX, dressingX, stoolX, direction } of suites) {
     const bedroom = `Bedroom_${side}_-_`;
     remove([`${bedroom}Bed_and_headboard`]);
     retain(`${bedroom}Wardrobe_and_dressing`, /Natural ivory linen/);
@@ -376,7 +376,7 @@ export function rebuildFurniture(model, bedding) {
     item(`${side} suite fluted wardrobe`, [robeX, .452, -12.50], robe, direction * Math.PI / 2);
     item(`${bedroom}Dressing console and mirror`, [dressingX, .452, -12.872], dressing, -direction * Math.PI / 2);
     item(`${side} suite dressing stool`, [stoolX, .452, -12.85], dressingStool);
-    item(`${side} suite luggage bench`, [benchX, .452, -10.93], bench, Math.PI / 2);
+    item(`${side} suite luggage bench`, [bedX, .452, -10.90], bench);
   }
 
   item('Kitchen teak work wall cabinetry', [20.52, .452, -7.687], kitchenCabinetry);
