@@ -51,16 +51,19 @@ dialog::backdrop{background:#0c130d9e}
 dialog form{float:right}dialog form button{width:34px;height:34px;font-size:19px}
 dialog h2{font-size:42px}dialog dt{font-weight:bold;margin-top:14px}dialog dd{margin:5px 0;color:var(--muted);line-height:1.5}
 #crosshair{position:fixed;top:50%;left:50%;width:5px;height:5px;border-radius:50%;background:#f9fae2;pointer-events:none}
-#walk-controls{position:fixed;z-index:3;left:18px;bottom:145px;text-align:center;touch-action:none}
-#walk-controls button{width:41px;height:41px;background:#172019c9;touch-action:none;font-size:18px}
-@media (max-width:680px){
- .header{padding:9px 13px;min-height:55px}.identity{gap:9px}.identity img{width:49px;height:29px}.identity b{font-size:13px}.identity small{font-size:8px}.edition{display:none}
- .panel{top:64px;right:9px;width:min(246px,calc(100% - 18px));max-height:calc(100dvh - 131px)}
- .caption{padding:45px 18px 16px;bottom:56px}.caption h1{font-size:37px}.caption p{font-size:11px;max-width:290px}
- .dock{padding-left:9px;padding-right:9px;gap:5px}.actions,.modes{gap:4px}.dock button{padding:0 6px;font-size:11px}.dock .icon-btn{width:30px}
- #hint,#fullscreen{display:none}#walk-controls{bottom:145px}
-}
-@media (max-width:380px){#tour span{display:none} .dock button{padding-inline:5px}}
+/* The scene and lower controls get separate layout regions on phones. */
+.stage,.bottom-ui,.scene-tools{display:contents}
+.mobile-label,#touch-hint{display:none}
+#walk-controls{position:fixed;z-index:3;left:18px;bottom:190px}
+#move-stick{position:relative;display:grid;place-items:center;width:108px;height:108px;padding:0;
+  border:1px solid #e2ebcf82;border-radius:50%;background:#152019e8;color:#e8f1d7;
+  touch-action:none;user-select:none;cursor:grab}
+#move-stick[data-active]{cursor:grabbing;border-color:var(--accent)}
+.stick-knob{width:43px;height:43px;border-radius:50%;border:1px solid #e8f1d7;
+  background:#8e9b76;box-shadow:0 2px 8px #0007;pointer-events:none}
+.stick-mark{position:absolute;font-size:16px;line-height:1;pointer-events:none}
+.stick-mark.up{top:5px}.stick-mark.right{right:6px;rotate:90deg}
+.stick-mark.down{bottom:5px;rotate:180deg}.stick-mark.left{left:6px;rotate:-90deg}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
 
 .room-controls{margin-top:12px;border-top:1px solid var(--line);padding:10px 4px 0}
@@ -71,4 +74,59 @@ dialog h2{font-size:42px}dialog dt{font-weight:bold;margin-top:14px}dialog dd{ma
 .room-buttons button[aria-checked=true],.near-actions button[aria-checked=true]{border-color:#dbe8b67e;background:#dbe8b626}
 .near-actions{position:fixed;right:20px;bottom:77px;z-index:3;display:flex;gap:6px}
 .near-actions button{background:#151d17ee;min-height:38px}
-@media(max-width:680px){.near-actions{right:10px;bottom:128px;flex-direction:column;align-items:flex-end}}
+kbd{font:inherit;color:var(--accent)}
+body:not([data-mode="walk"]) #near-light kbd{display:none}
+
+@media (max-width:680px), (max-width:960px) and (max-height:540px) and (pointer:coarse){
+ body{display:grid;grid-template-rows:auto minmax(0,1fr) auto;height:100vh;height:100dvh}
+ .header,.dock,.caption{position:static;width:auto}
+ .header{min-height:0;gap:8px;padding:calc(5px + env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) 5px max(10px,env(safe-area-inset-left))}
+ .identity{gap:8px;min-width:0}.identity img{width:44px;height:27px;flex:none}
+ .identity b{font-size:13px;line-height:1.16}.identity small{margin-top:3px;font-size:8px;letter-spacing:.11em;line-height:1.3}
+ .header-end{flex:none}.edition{display:none}
+ #panel-toggle{display:inline-flex;align-items:center;justify-content:center;gap:6px;width:auto;min-height:44px;padding:0 9px;font-size:11px}
+ .mobile-label{display:inline}.desktop-label,.mode-icon{display:none}
+ .stage{position:relative;display:block;min-height:0;overflow:hidden;isolation:isolate}
+ #viewport{position:absolute}
+ #crosshair{position:absolute;transform:translate(-50%,-50%)}
+ .panel{position:absolute;inset:0;width:auto;max-height:none;padding:12px max(12px,env(safe-area-inset-right)) 14px max(12px,env(safe-area-inset-left));
+   overscroll-behavior:contain;touch-action:pan-y;background:#151d17fa}
+ .panel-head{padding-bottom:7px}.panel-head p{margin-top:4px}
+ .stop,.segmented button,.switch,.room-buttons button{min-height:44px}
+ .segmented button,.room-buttons button{font-size:12px}
+ .room-controls summary{min-height:44px;align-content:center}
+ .room-controls{padding-top:0}
+ .scene-tools{position:absolute;z-index:2;left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));bottom:11px;
+   display:flex;align-items:flex-end;gap:12px;pointer-events:none}
+ .stage[data-panel-open="true"] .scene-tools,.stage[data-panel-open="true"] #crosshair{visibility:hidden}
+ #walk-controls,.near-actions{position:static}
+ #move-stick,.near-actions button{pointer-events:auto}
+ .near-actions{margin-left:auto;min-width:0;max-width:180px;flex-direction:column;align-items:flex-end;gap:5px}
+ .near-actions button{min-height:44px;max-width:100%;line-height:1.25;text-align:left;box-shadow:0 2px 10px #0004}
+ .near-actions button[aria-checked="true"]{background:#263222}
+ .near-actions kbd{display:none}
+ .bottom-ui{display:block;z-index:2;background:#151e17;border-top:1px solid var(--line)}
+ .caption{padding:9px max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left));background:none}
+ .caption .eyebrow{font-size:9px}
+ .caption h1{font-size:clamp(20px,5.8vw,28px);line-height:1.12;margin:3px 0 4px;letter-spacing:-.035em}
+ .caption p{font-size:11px;line-height:1.4;max-width:none;text-shadow:none;color:var(--muted)}
+ body[data-mode="walk"] #view-description{display:none}
+ body[data-mode="walk"] #touch-hint{display:block}
+ .dock{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px;padding:5px max(8px,env(safe-area-inset-right)) calc(5px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));min-height:0}
+ .modes,.actions{gap:4px}
+ .modes button{flex:1 1 0;min-width:44px}
+ .dock button{height:44px;padding:0 7px;font-size:12px}
+ .dock .icon-btn{width:44px}
+ #hint,#fullscreen{display:none}
+ dialog{max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));padding:16px;overscroll-behavior:contain}
+ dialog form button,#retry{min-width:44px;min-height:44px}
+}
+@media (max-width:960px) and (max-height:540px) and (orientation:landscape) and (pointer:coarse){
+ .identity small{display:none}
+ .bottom-ui{display:grid;grid-template-columns:minmax(0,1fr) minmax(252px,1fr);align-items:center;padding-bottom:env(safe-area-inset-bottom)}
+ .caption{padding-top:4px;padding-bottom:4px}
+ .caption h1{font-size:18px;margin-bottom:1px}
+ .caption #view-description{display:none}
+ .dock{padding-bottom:5px;border-top:0}
+ .panel #stops{grid-template-columns:repeat(2,minmax(0,1fr))}
+}

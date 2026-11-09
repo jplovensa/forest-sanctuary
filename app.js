@@ -29,7 +29,8 @@ const lighting = {
 
 const $ = id => document.getElementById(id);
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
-const phone = matchMedia('(max-width: 680px)');
+const phone = matchMedia('(max-width: 680px), (max-width: 960px) and (max-height: 540px) and (pointer: coarse)');
+const coarsePointer = matchMedia('(pointer: coarse)');
 const pressed = new Set();
 let mode = 'orbit';
 let activeStop = 0;
@@ -57,7 +58,6 @@ async function start() {
   canvas.setAttribute('aria-label', 'Forest Sanctuary 3D scene');
   canvas.tabIndex = 0;
   $('viewport').append(canvas);
-  renderer.setPixelRatio(Math.min(devicePixelRatio, phone.matches ? 1.35 : 1.65));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.shadowMap.enabled = true;
@@ -121,12 +121,23 @@ async function start() {
   }
   setLight('day');
 
+  let renderWidth = 0;
+  let renderHeight = 0;
   function size() {
     const {clientWidth: width, clientHeight: height} = $('viewport');
-    renderer.setSize(width, height, false);
+    if (!width || !height) return;
+    const ratio = Math.min(devicePixelRatio, phone.matches ? 1.25 : 1.65);
+    if (renderer.getPixelRatio() !== ratio) renderer.setPixelRatio(ratio);
+    if (width !== renderWidth || height !== renderHeight) {
+      renderer.setSize(width, height, false);
+      renderWidth = width;
+      renderHeight = height;
+    }
     const aspect = width / height;
     camera.aspect = aspect;
-    camera.fov = mode === 'walk' ? 65 : phone.matches ? 59 : activeStop > 1 ? 56 : 48;
+    const desktopFov = mode === 'walk' ? 65 : activeStop > 1 ? 56 : 48;
+    const portraitFov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(Math.PI / 8) / aspect));
+    camera.fov = phone.matches ? Math.max(desktopFov, Math.min(84, portraitFov)) : desktopFov;
     camera.updateProjectionMatrix();
     const vertical = Math.max(20, 29 / aspect);
     Object.assign(plan, { left: -vertical * aspect / 2, right: vertical * aspect / 2, top: vertical / 2, bottom: -vertical / 2 });
@@ -237,8 +248,7 @@ async function start() {
   function stopTour() {
     clearInterval(tourTimer);
     tourTimer = undefined;
-    $('tour').setAttribute('aria-pressed', 'false');
-    $('tour').innerHTML = '▷ <span>Guided tour</span>';
+    setTourLabel(false);
   }
   function goTo(index, instant = false) {
     activeStop = index;
@@ -271,14 +281,15 @@ async function start() {
   function setMode(next) {
     if (next === mode) return;
     if (document.pointerLockElement === canvas) document.exitPointerLock();
-    pressed.clear();
+    resetWalkInput();
     animation = undefined;
     mode = next;
+    document.body.dataset.mode = mode;
     controls.enabled = mode === 'orbit';
     planControls.enabled = mode === 'plan';
     cameraInUse = mode === 'plan' ? plan : camera;
     $('modes').querySelectorAll('button').forEach(button => button.setAttribute('aria-pressed', button.dataset.mode === mode));
-    $('walk-controls').hidden = mode !== 'walk' || !matchMedia('(pointer: coarse)').matches;
+    syncTouchControls();
     $('crosshair').hidden = mode !== 'walk';
     $('cutaway').disabled = mode === 'plan';
     $('hint').textContent = { orbit: 'Drag to orbit · Scroll to zoom', plan: 'Roof removed · Drag to pan · Scroll to zoom', walk: 'WASD or arrows to move · Drag to look · Esc to release' }[mode];
@@ -303,15 +314,24 @@ async function start() {
     button.addEventListener('click', () => {
       stopTour();
       goTo(index);
-      if (phone.matches) setPanel(false);
+      if (phone.matches) {
+        setPanel(false);
+        (mode === 'walk' ? canvas : $('panel-toggle')).focus({ preventScroll: true });
+      }
     });
     $('stops').append(button);
   });
+  const stage = canvas.closest('.stage');
   function setPanel(visible) {
     $('panel').hidden = !visible;
-    $('panel-toggle').setAttribute('aria-expanded', visible);
+    const toggle = $('panel-toggle');
+    toggle.setAttribute('aria-expanded', visible);
+    toggle.setAttribute('aria-label', visible ? 'Close exploration panel' : 'Explore pavilions');
+    toggle.querySelector('.mobile-label').textContent = visible ? 'Close' : 'Explore';
+    stage.dataset.panelOpen = visible;
+    $('viewport').inert = phone.matches && visible;
+    if (phone.matches && visible) resetWalkInput();
   }
-  setPanel(!phone.matches);
   $('panel-toggle').onclick = () => setPanel($('panel').hidden);
   $('cutaway').onchange = refreshGeometry;
   const nearDoor = $('near-door');
@@ -325,14 +345,14 @@ async function start() {
       mode === 'orbit' ? bedroomLights.lights[activeStop - 4] : undefined;
     if (door !== previousDoor || door?.open !== previousOpen) {
       nearDoor.hidden = !door;
-      nearDoor.textContent = door ? `${door.open ? 'Close' : 'Open'} ${door.name.toLowerCase().replace(/ door$/, '')} door · E` : '';
+      nearDoor.querySelector('span').textContent = door ? `${door.open ? 'Close' : 'Open'} ${door.name.toLowerCase().replace(/ door$/, '')} door` : '';
       previousDoor = door;
       previousOpen = door?.open;
     }
     if (room !== previousRoom) {
       nearLight.hidden = !room;
       nearLight.dataset.bedroom = room?.id ?? '';
-      nearLight.querySelector('span').textContent = room ? `${room.name} lights${mode === 'walk' ? ' · L' : ''}` : '';
+      nearLight.querySelector('span').textContent = room ? `${room.name} lights` : '';
       previousRoom = room;
       bedroomLights.setPower(Number($('lighting').dataset.power ?? lighting.day.inside * 0.68));
     }
@@ -341,7 +361,7 @@ async function start() {
     doors.toggle(doors.nearest(camera.position));
     canvas.focus({ preventScroll: true });
   };
-  document.querySelectorAll('[data-bedroom]').forEach(button => {
+  document.querySelectorAll('#near-light, [data-bedroom]').forEach(button => {
     button.onclick = () => {
       bedroomLights.toggle(button.dataset.bedroom);
       if (mode === 'walk') canvas.focus({ preventScroll: true });
@@ -355,13 +375,20 @@ async function start() {
     const next = event.target.closest('button')?.dataset.mode;
     if (next) { stopTour(); setMode(next); }
   };
+  function setTourLabel(playing) {
+    const button = $('tour');
+    button.setAttribute('aria-pressed', playing);
+    button.setAttribute('aria-label', playing ? 'Stop guided tour' : 'Guided tour');
+    button.querySelector('[aria-hidden]').textContent = playing ? 'Ⅱ' : '▷';
+    button.querySelector('.desktop-label').textContent = playing ? 'Stop tour' : 'Guided tour';
+    button.querySelector('.mobile-label').textContent = playing ? 'Stop' : 'Tour';
+  }
   $('tour').onclick = () => {
     if (tourTimer) { stopTour(); return; }
     setMode('orbit');
     let index = 0;
     goTo(index, true);
-    $('tour').setAttribute('aria-pressed', 'true');
-    $('tour').innerHTML = 'Ⅱ <span>Stop tour</span>';
+    setTourLabel(true);
     tourTimer = setInterval(() => {
       index += 1;
       if (index < stops.length) goTo(index);
@@ -374,13 +401,80 @@ async function start() {
       else await document.documentElement.requestFullscreen();
     } catch { $('hint').textContent = 'Fullscreen is unavailable in this browser.'; }
   };
-  $('help').onclick = () => $('help-dialog').showModal();
+  $('help').onclick = () => {
+    resetWalkInput();
+    $('help-dialog').showModal();
+  };
   controls.addEventListener('start', () => { animation = undefined; stopTour(); });
+  new ResizeObserver(size).observe($('viewport'));
   addEventListener('resize', size);
-  addEventListener('blur', () => pressed.clear());
+
+  const moveStick = $('move-stick');
+  const knob = moveStick.querySelector('.stick-knob');
+  const thumb = new THREE.Vector2();
+  let stickPointer;
+  function syncTouchControls() {
+    $('walk-controls').hidden = mode !== 'walk' || !(phone.matches || coarsePointer.matches);
+  }
+  function releaseStick() {
+    stickPointer = undefined;
+    thumb.set(0, 0);
+    knob.style.transform = '';
+    delete moveStick.dataset.active;
+  }
+  function resetWalkInput() {
+    pressed.clear();
+    drag = undefined;
+    releaseStick();
+  }
+  function steerStick(event) {
+    const {left, top, width, height} = moveStick.getBoundingClientRect();
+    const travel = (width - knob.offsetWidth) / 2 - 5;
+    if (travel <= 0) return;
+    thumb.set((event.clientX - left - width / 2) / travel, (event.clientY - top - height / 2) / travel);
+    thumb.clampLength(0, 1);
+    knob.style.transform = `translate(${thumb.x * travel}px, ${thumb.y * travel}px)`;
+    const deadZone = .16;
+    thumb.setLength(Math.max(0, (thumb.length() - deadZone) / (1 - deadZone)));
+  }
+  moveStick.onpointerdown = event => {
+    if (mode !== 'walk' || event.button !== 0 || stickPointer !== undefined) return;
+    capturePointer(moveStick, event);
+    stickPointer = event.pointerId;
+    moveStick.dataset.active = '';
+    steerStick(event);
+  };
+  moveStick.onpointermove = event => {
+    if (event.pointerId === stickPointer) steerStick(event);
+  };
+  moveStick.onpointerup = moveStick.onpointercancel = moveStick.onlostpointercapture = event => {
+    if (event.pointerId === stickPointer) releaseStick();
+  };
+  addEventListener('blur', resetWalkInput);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) resetWalkInput();
+  });
+  phone.addEventListener('change', () => {
+    setPanel(!phone.matches);
+    resetWalkInput();
+    syncTouchControls();
+    size();
+  });
+  coarsePointer.addEventListener('change', () => {
+    releaseStick();
+    syncTouchControls();
+  });
+  setPanel(!phone.matches);
+
   const moveKeys = { ArrowUp:'KeyW', ArrowLeft:'KeyA', ArrowDown:'KeyS', ArrowRight:'KeyD' };
   addEventListener('keydown', event => {
-    if (mode !== 'walk' || event.target.closest?.('input, button, dialog')) return;
+    if (event.key === 'Escape' && phone.matches && !$('panel').hidden && !$('help-dialog').open) {
+      setPanel(false);
+      $('panel-toggle').focus({ preventScroll: true });
+      return;
+    }
+    if (mode !== 'walk' || (phone.matches && !$('panel').hidden) ||
+        (event.target !== moveStick && event.target.closest?.('input, button, dialog'))) return;
     const key = moveKeys[event.code] || event.code;
     if (!event.repeat && key === 'KeyE') doors.toggle(doors.nearest(camera.position));
     if (!event.repeat && key === 'KeyL') bedroomLights.toggle(bedroomLights.nearby(camera.position)?.id);
@@ -390,24 +484,16 @@ async function start() {
     }
   });
   addEventListener('keyup', event => pressed.delete(moveKeys[event.code] || event.code));
-  $('walk-controls').querySelectorAll('[data-move]').forEach(button => {
-    const key = button.dataset.move;
-    button.onpointerdown = event => {
-      capturePointer(button, event);
-      pressed.add(key);
-    };
-    button.onpointerup = button.onpointercancel = button.onlostpointercapture = () => pressed.delete(key);
-  });
   canvas.addEventListener('pointerdown', event => {
-    if (mode !== 'walk') return;
+    if (mode !== 'walk' || drag || event.button !== 0) return;
     canvas.focus({preventScroll:true});
     capturePointer(canvas, event);
-    drag = { x:event.clientX, y:event.clientY, moved:false };
+    drag = { id:event.pointerId, x:event.clientX, y:event.clientY, moved:false };
   });
   canvas.addEventListener('pointermove', event => {
     if (mode !== 'walk') return;
     if (document.pointerLockElement === canvas) turn(event.movementX,event.movementY);
-    else if (drag) {
+    else if (drag?.id === event.pointerId) {
       const dx = event.clientX - drag.x;
       const dy = event.clientY - drag.y;
       drag.moved ||= Math.abs(dx) + Math.abs(dy) > 1;
@@ -417,7 +503,8 @@ async function start() {
     }
   });
   canvas.addEventListener('pointerup', event => {
-    if (mode === 'walk' && drag && !drag.moved) {
+    if (drag?.id !== event.pointerId) return;
+    if (mode === 'walk' && !drag.moved) {
       const bounds = canvas.getBoundingClientRect();
       const locked = document.pointerLockElement === canvas;
       const point = new THREE.Vector2(
@@ -441,9 +528,13 @@ async function start() {
     }
     drag = undefined;
   });
-  canvas.addEventListener('pointercancel', () => { drag = undefined; });
-  canvas.addEventListener('pointerleave', () => { drag = undefined; });
-  document.addEventListener('pointerlockchange', () => pressed.clear());
+  const releaseLook = event => {
+    if (drag?.id === event.pointerId) drag = undefined;
+  };
+  canvas.addEventListener('pointercancel', releaseLook);
+  canvas.addEventListener('lostpointercapture', releaseLook);
+  canvas.addEventListener('pointerleave', releaseLook);
+  document.addEventListener('pointerlockchange', resetWalkInput);
 
   goTo(0, true);
   refreshGeometry();
@@ -466,10 +557,10 @@ async function start() {
       controls.update();
     }
     if (mode === 'walk') {
-      const side = Number(pressed.has('KeyD')) - Number(pressed.has('KeyA'));
-      const forward = Number(pressed.has('KeyW')) - Number(pressed.has('KeyS'));
+      const side = Number(pressed.has('KeyD')) - Number(pressed.has('KeyA')) + thumb.x;
+      const forward = Number(pressed.has('KeyW')) - Number(pressed.has('KeyS')) - thumb.y;
       if (side || forward) {
-        const speed = (pressed.has('ShiftLeft') || pressed.has('ShiftRight') ? 3.0 : 1.72) * dt / Math.hypot(side,forward);
+        const speed = (pressed.has('ShiftLeft') || pressed.has('ShiftRight') ? 3.0 : 1.72) * dt / Math.max(1, Math.hypot(side, forward));
         const dx = (side * Math.cos(yaw) - forward * Math.sin(yaw)) * speed;
         const dz = (-side * Math.sin(yaw) - forward * Math.cos(yaw)) * speed;
         if (dx && walkOpen(camera.position, movement.set(dx,0,0), dx)) camera.position.x += dx;

@@ -4,7 +4,7 @@ A playable 3D walkthrough of the Fjäll Forest Resort, exported from the furnish
 
 - **Orbit** to inspect the model, or choose one of seven saved views.
 - **Plan** reveals the pavilions from above.
-- **Walk** uses WASD or arrow keys and mouse look, with drag and movement controls on touch screens. Open and close the five sliding entrances and the two bathing pavilion doors from the sidebar or press E near a door in Walk mode. Click a nearby door to toggle it.
+- **Walk** uses WASD or arrow keys and mouse look. On a phone, hold the thumbstick to move and drag the scene with another finger to look around. Open and close the five sliding entrances and the two bathing pavilion doors from the sidebar or press E near a door in Walk mode. Click a nearby door to toggle it.
 - **Bedroom lights** are independent. Use either suite’s control, click its wall switch or press L near the switch in Walk mode.
 - **Guided tour** moves through all seven views. Switch between daylight, golden hour and dusk.
 
