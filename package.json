@@ -1,1 +1,1 @@
-{"name":"forest-sanctuary","private":true,"type":"module","scripts":{"check":"node --check app.js && node --check viewer-geometry.js && node tools/check-model.mjs"}}
+{"name":"forest-sanctuary","private":true,"type":"module","scripts":{"check":"node --check app.js && node --check viewer-geometry.js && node --check atmosphere.js && node --check materials.js && node --check doors.js && node --check bedroom-lights.js && node tools/check-model.mjs"}}

@@ -7,7 +7,7 @@
   <meta name="description" content="Walk through Forest Sanctuary, a five-pavilion Fjäll retreat set among the trees.">
   <title>Forest Sanctuary | Fjäll Group</title>
   <link rel="icon" href="./assets/mark.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./style.css?v=forest-pbr-1">
   <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
 </head>
 <body>
@@ -37,7 +37,22 @@
       </div>
       <label class="switch"><span>Reveal interiors</span><input id="cutaway" type="checkbox" role="switch"></label>
     </div>
+    <details class="room-controls" open>
+      <summary>Bedroom lights</summary>
+      <div class="room-buttons">
+        <button type="button" role="switch" aria-checked="true" aria-label="West suite lights" data-bedroom="west"><span>West garden suite</span><small>On</small></button>
+        <button type="button" role="switch" aria-checked="true" aria-label="East suite lights" data-bedroom="east"><span>East garden suite</span><small>On</small></button>
+      </div>
+    </details>
+    <details class="room-controls">
+      <summary>Doors</summary>
+      <div id="door-controls" class="room-buttons"></div>
+    </details>
   </aside>
+  <div class="near-actions">
+    <button id="near-door" type="button" hidden></button>
+    <button id="near-light" type="button" role="switch" aria-checked="true" hidden><span></span><small>On</small></button>
+  </div>
   <div id="walk-controls" hidden aria-label="Movement">
     <button data-move="KeyW" aria-label="Walk forward">↑</button>
     <div><button data-move="KeyA" aria-label="Walk left">←</button><button data-move="KeyS" aria-label="Walk backward">↓</button><button data-move="KeyD" aria-label="Walk right">→</button></div>
@@ -72,9 +87,10 @@
       <dt>Orbit</dt><dd>Drag to rotate. Scroll or pinch to zoom. Right-drag or use two fingers to pan.</dd>
       <dt>Plan</dt><dd>Look down into the pavilions. Drag to pan and scroll to zoom.</dd>
       <dt>Walk</dt><dd>Use WASD or arrow keys to move. Drag the view to look around, or click to capture the mouse. Escape releases it. On touch screens, drag to look and use the arrow buttons.</dd>
+      <dt>Doors and lights</dt><dd>Use the sidebar to control each door and bedroom independently. In Walk mode, press E near a door or L near a bedroom switch. You can also click a nearby door or wall switch.</dd>
       <dt>Guided tour</dt><dd>Move through seven views from the pool arrival to both garden suites.</dd>
     </dl>
   </dialog>
-  <script type="module" src="./app.js?v=walk-2"></script>
+  <script type="module" src="./app.js?v=forest-pbr-1"></script>
 </body>
 </html>

@@ -3,6 +3,11 @@ import { OrbitControls } from './vendor/OrbitControls.js';
 import { GLTFLoader } from './vendor/GLTFLoader.js';
 import { MeshoptDecoder } from './vendor/meshopt_decoder.mjs';
 import { prepareVisibility } from './viewer-geometry.js';
+import { RGBELoader } from './vendor/RGBELoader.js';
+import { loadSurfaceMaps, styleMaterial } from './materials.js';
+import { addReflectingPool, addForestBreeze } from './atmosphere.js';
+import { prepareDoors } from './doors.js';
+import { prepareBedroomLights } from './bedroom-lights.js';
 
 // Coordinates are in metres, converted from Blender's Z-up scene.
 const vector = ([x, y, z]) => new THREE.Vector3(x, z, -y);
@@ -16,9 +21,9 @@ const stops = [
   { name: 'The bathing pavilion', nav: 'Bathing pavilion', type: 'Pavilion 05', desc: 'A stone soaking tub sits beside the glass shower and screened WC.', eye: [9.19,6.18,2.03], at: [6.25,7.39,1.35] },
 ];
 const lighting = {
-  day: { sky: 0xa6b1a1, fill: 0xe2e9e3, soil: 0x9e9374, sun: 0xffead0, power: 2.0, hemi: 2.05, inside: 1.8, exposure: 1.05, sunPosition: [-5,18,8] },
-  gold: { sky: 0xa49780, fill: 0xe3c6a0, soil: 0x77624a, sun: 0xffc381, power: 2.7, hemi: 1.26, inside: 3.8, exposure: 1.08, sunPosition: [-9,9,9] },
-  dusk: { sky: 0x495667, fill: 0xa9b8e2, soil: 0x56535b, sun: 0x9eafd9, power: 0.38, hemi: 0.90, inside: 7.5, exposure: 1.12, sunPosition: [-5,16,7] },
+  day: { sky: 0xa6b1a1, fill: 0xe2e9e3, soil: 0x9e9374, sun: 0xffead0, power: 2.65, hemi: 1.05, inside: 3.5, env: 0.78, exposure: 1.07, sunPosition: [-5,18,8] },
+  gold: { sky: 0xa49780, fill: 0xe3c6a0, soil: 0x77624a, sun: 0xffc381, power: 2.85, hemi: 0.62, inside: 5.5, env: 0.60, exposure: 1.07, sunPosition: [-9,9,9] },
+  dusk: { sky: 0x495667, fill: 0xa9b8e2, soil: 0x56535b, sun: 0x9eafd9, power: 0.30, hemi: 0.42, inside: 9.2, env: 0.31, exposure: 1.12, sunPosition: [-5,16,7] },
 };
 
 const $ = id => document.getElementById(id);
@@ -38,34 +43,6 @@ const look = new THREE.Vector3();
 const movement = new THREE.Vector3();
 const nextStep = new THREE.Vector2();
 
-// Restore subtle surface variation from Blender's procedural ground materials.
-function groundFinish(material, shade, grain) {
-  material.color.set(shade);
-  material.roughness = .92;
-  material.onBeforeCompile = shader => {
-    shader.vertexShader = 'varying vec3 terrainPoint;\n' + shader.vertexShader.replace(
-      '#include <begin_vertex>',
-      '#include <begin_vertex>\nterrainPoint = (modelMatrix * vec4(position, 1.0)).xyz;'
-    );
-    shader.fragmentShader = `
-      varying vec3 terrainPoint;
-      float soilHash(vec2 p) { return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
-      float soilNoise(vec2 p) {
-        vec2 i=floor(p), f=fract(p);
-        f=f*f*(3.0-2.0*f);
-        return mix(mix(soilHash(i),soilHash(i+vec2(1,0)),f.x),
-                   mix(soilHash(i+vec2(0,1)),soilHash(i+vec2(1,1)),f.x),f.y);
-      }
-    ` + shader.fragmentShader.replace(
-      '#include <color_fragment>',
-      `#include <color_fragment>
-       float soil = soilNoise(terrainPoint.xz * 3.0) * .64 + soilNoise(terrainPoint.xz * 24.0) * .36;
-       diffuseColor.rgb *= 1.0 + (soil - .5) * ${(grain * 2).toFixed(3)};`
-    );
-  };
-  material.customProgramCacheKey = () => `forest-ground-${grain}`;
-}
-
 function capturePointer(element, event) {
   try { element.setPointerCapture(event.pointerId); }
   catch (error) {
@@ -84,6 +61,7 @@ async function start() {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.autoUpdate = false;
   const scene = new THREE.Scene();
   scene.fog = new THREE.Fog(lighting.day.sky, 33, 81);
 
@@ -110,16 +88,18 @@ async function start() {
   sun.castShadow = true;
   sun.shadow.mapSize.set(phone.matches ? 1024 : 2048, phone.matches ? 1024 : 2048);
   Object.assign(sun.shadow.camera, { left: -17, right: 17, top: 15, bottom: -15, near: .1, far: 70 });
-  sun.shadow.normalBias = .04;
+  sun.shadow.normalBias = .027;
   sun.shadow.bias = -.00015;
   scene.add(hemi, sun, sun.target);
-  const practicals = [[6.62,11.3,2.65],[20.47,11.3,2.65],[6.6,7,2.65],[13.36,10,2.65],[20.5,7.35,2.65]].map(position => {
+  const practicals = [[6.6,7,2.65],[13.36,10,2.65],[20.5,7.35,2.65]].map(position => {
     const light = new THREE.PointLight(0xffb671, 2.3, 7);
     light.position.copy(vector(position));
     scene.add(light);
     return light;
   });
 
+  let bedroomLights;
+  const updateShadow = () => { renderer.shadowMap.needsUpdate = true; };
   function setLight(key) {
     const light = lighting[key];
     scene.background = new THREE.Color(light.sky);
@@ -132,6 +112,10 @@ async function start() {
     sun.position.set(...light.sunPosition);
     renderer.toneMappingExposure = light.exposure;
     practicals.forEach(item => { item.intensity = light.inside; });
+    $('lighting').dataset.power = light.inside * 0.68;
+    bedroomLights?.setPower(light.inside * 0.68);
+    scene.environmentIntensity = light.env;
+    updateShadow();
     $('lighting').querySelectorAll('button').forEach(button => button.setAttribute('aria-pressed', button.dataset.light === key));
   }
   setLight('day');
@@ -148,36 +132,53 @@ async function start() {
     plan.updateProjectionMatrix();
   }
 
-  const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync('./assets/sanctuary.glb', event => {
-    if (event.lengthComputable) $('progress').value = Math.min(98, event.loaded / event.total * 100);
-  });
+  const [gltf, maps, environment] = await Promise.all([
+    new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync('./assets/sanctuary.glb', event => {
+      if (event.lengthComputable) $('progress').value = Math.min(88, event.loaded / event.total * 88);
+    }),
+    loadSurfaceMaps(renderer.capabilities.getMaxAnisotropy()),
+    new RGBELoader().loadAsync('./assets/pbr/forest.hdr'),
+  ]);
+  environment.mapping = THREE.EquirectangularReflectionMapping;
+  scene.environment = environment;
+  scene.environmentRotation.y = Math.PI / 3;
   const model = gltf.scene;
+  for (const person of [...model.children]) {
+    if (/guest/i.test(person.name) && person.name !== 'Living_Pavilion_-_Guest') person.removeFromParent();
+  }
   model.updateMatrixWorld(true);
   scene.add(model);
   const { roof, canopies, slidingLeaves, ceiling, screen } = prepareVisibility(model);
+  const doors = prepareDoors(model, slidingLeaves, $('door-controls'));
+  bedroomLights = prepareBedroomLights(scene, model, updateShadow);
+  bedroomLights.setPower(lighting.day.inside * 0.68);
+  obstacles.push(...doors.blockers);
   if (screen) obstacles.push(screen);
+  const styled = new Set();
+  const forestTime = { value: 0 };
+  let originalWater;
   model.traverse(object => {
     if (!object.isMesh) return;
     const material = object.material;
     const foliage = /Terminalia Catappa (Leaf|Nuts)/i.test(material.name);
-    if (foliage) {
-      material.transparent = false;
-      material.alphaTest = .40;
-      material.depthWrite = true;
-    }
-    if (/forest floor/i.test(material.name)) {
-      const shade = material.name.includes('shade') ? 0x56523e : material.name.includes('dry leaves') ? 0x5f5842 : 0x5b5541;
-      groundFinish(material, shade, .24);
-    } else if (material.name === '[Grass Dark Green]') {
-      groundFinish(material, 0x465438, .29);
-    } else if (material.name === '[Water Deep]') {
-      material.color.set(0x245052);
-      material.roughness = .32;
-    }
     const largeCanopy = canopies.includes(object);
+    if (/Water Deep/.test(material.name)) originalWater = object;
+    if (!styled.has(material)) {
+      styled.add(material);
+      styleMaterial(material, maps);
+      if (foliage) {
+        material.transparent = false;
+        material.alphaTest = 0.40;
+        material.depthWrite = true;
+      }
+      if (/Terminalia Catappa (Leaf|Nuts|Branch)/i.test(material.name)) {
+        addForestBreeze(material, forestTime, foliage ? 0.17 : 0.11);
+      }
+    }
     object.castShadow = !material.transparent && !largeCanopy;
     object.receiveShadow = !material.transparent && !foliage;
   });
+  const reflectingPool = addReflectingPool(scene, originalWater, phone.matches);
   const label = object => object.name.replaceAll('_', ' ');
   model.traverse(object => {
     const name = label(object);
@@ -210,7 +211,8 @@ async function start() {
     if (roof) roof.visible = mode !== 'plan' && !$('cutaway').checked;
     if (ceiling) ceiling.visible = mode !== 'plan' && !$('cutaway').checked;
     canopies.forEach(batch => { batch.visible = mode !== 'plan'; });
-    slidingLeaves.forEach(batch => { batch.visible = mode === 'orbit'; });
+    reflectingPool.setPlan(mode === 'plan');
+    updateShadow();
   }
   function turn(dx, dy) {
     yaw -= dx * .003;
@@ -273,6 +275,7 @@ async function start() {
     $('cutaway').disabled = mode === 'plan';
     $('hint').textContent = { orbit: 'Drag to orbit · Scroll to zoom', plan: 'Roof removed · Drag to pan · Scroll to zoom', walk: 'WASD or arrows to move · Drag to look · Esc to release' }[mode];
     refreshGeometry();
+    updateActions();
     if (mode === 'plan') {
       plan.zoom = 1;
       plan.position.set(13.4,34,-8.6);
@@ -303,6 +306,39 @@ async function start() {
   setPanel(!phone.matches);
   $('panel-toggle').onclick = () => setPanel($('panel').hidden);
   $('cutaway').onchange = refreshGeometry;
+  const nearDoor = $('near-door');
+  const nearLight = $('near-light');
+  let previousDoor;
+  let previousRoom;
+  let previousOpen;
+  function updateActions() {
+    const door = mode === 'walk' ? doors.nearest(camera.position) : undefined;
+    const room = mode === 'walk' ? bedroomLights.nearby(camera.position) :
+      mode === 'orbit' ? bedroomLights.lights[activeStop - 4] : undefined;
+    if (door !== previousDoor || door?.open !== previousOpen) {
+      nearDoor.hidden = !door;
+      nearDoor.textContent = door ? `${door.open ? 'Close' : 'Open'} ${door.name.toLowerCase().replace(/ door$/, '')} door · E` : '';
+      previousDoor = door;
+      previousOpen = door?.open;
+    }
+    if (room !== previousRoom) {
+      nearLight.hidden = !room;
+      nearLight.dataset.bedroom = room?.id ?? '';
+      nearLight.querySelector('span').textContent = room ? `${room.name} lights${mode === 'walk' ? ' · L' : ''}` : '';
+      previousRoom = room;
+      bedroomLights.setPower(Number($('lighting').dataset.power ?? lighting.day.inside * 0.68));
+    }
+  }
+  nearDoor.onclick = () => {
+    doors.toggle(doors.nearest(camera.position));
+    canvas.focus({ preventScroll: true });
+  };
+  document.querySelectorAll('[data-bedroom]').forEach(button => {
+    button.onclick = () => {
+      bedroomLights.toggle(button.dataset.bedroom);
+      if (mode === 'walk') canvas.focus({ preventScroll: true });
+    };
+  });
   $('lighting').onclick = event => {
     const key = event.target.closest('button')?.dataset.light;
     if (key) setLight(key);
@@ -338,6 +374,8 @@ async function start() {
   addEventListener('keydown', event => {
     if (mode !== 'walk' || event.target.closest?.('input, button, dialog')) return;
     const key = moveKeys[event.code] || event.code;
+    if (!event.repeat && key === 'KeyE') doors.toggle(doors.nearest(camera.position));
+    if (!event.repeat && key === 'KeyL') bedroomLights.toggle(bedroomLights.nearby(camera.position)?.id);
     if (['KeyW','KeyA','KeyS','KeyD','ShiftLeft','ShiftRight'].includes(key)) {
       event.preventDefault();
       pressed.add(key);
@@ -371,6 +409,25 @@ async function start() {
     }
   });
   canvas.addEventListener('pointerup', event => {
+    if (mode === 'walk' && drag && !drag.moved) {
+      const bounds = canvas.getBoundingClientRect();
+      const locked = document.pointerLockElement === canvas;
+      const point = new THREE.Vector2(
+        locked ? 0 : (event.clientX - bounds.left) / bounds.width * 2 - 1,
+        locked ? 0 : 1 - (event.clientY - bounds.top) / bounds.height * 2
+      );
+      ray.setFromCamera(point, camera);
+      ray.far = 2.2;
+      const hit = ray.intersectObjects([...doors.blockers, ...bedroomLights.lights.map(item => item.plate)], true)[0];
+      const room = bedroomLights.lights.find(item => hit?.object.parent === item.plate);
+      const door = doors.fromHit(hit);
+      if (room || door) {
+        if (room) bedroomLights.toggle(room.id);
+        else doors.toggle(door);
+        drag = undefined;
+        return;
+      }
+    }
     if (mode === 'walk' && drag && !drag.moved && event.pointerType === 'mouse' && document.pointerLockElement !== canvas) {
       try { canvas.requestPointerLock?.()?.catch(() => {}); } catch { /* Drag remains available. */ }
     }
@@ -384,6 +441,7 @@ async function start() {
   refreshGeometry();
   $('progress').value = 100;
   let last = performance.now();
+  reflectingPool.update(0, sun);
   renderer.render(scene, camera);
   $('loading').hidden = true;
   renderer.setAnimationLoop(now => {
@@ -411,6 +469,10 @@ async function start() {
       }
       camera.position.y = THREE.MathUtils.lerp(camera.position.y, floorAt(camera.position) + 1.52, Math.min(1,dt*13));
     }
+    if (doors.update(dt, reducedMotion.matches)) updateShadow();
+    updateActions();
+    if (!reducedMotion.matches) forestTime.value += dt;
+    reflectingPool.update(forestTime.value, sun);
     renderer.render(scene, cameraInUse);
   });
 }

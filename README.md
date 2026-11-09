@@ -4,7 +4,8 @@ A playable 3D walkthrough of the Fjäll Forest Resort, exported from the furnish
 
 - **Orbit** to inspect the model, or choose one of seven saved views.
 - **Plan** reveals the pavilions from above.
-- **Walk** uses WASD or arrow keys and mouse look, with drag and movement controls on touch screens. The sliding door leaves are hidden in Walk mode to leave the entrances open, with the fixed tracks and frames visible.
+- **Walk** uses WASD or arrow keys and mouse look, with drag and movement controls on touch screens. Open and close the five sliding entrances and the two bathing pavilion doors from the sidebar or press E near a door in Walk mode. Click a nearby door to toggle it.
+- **Bedroom lights** are independent. Use either suite’s control, click its wall switch or press L near the switch in Walk mode.
 - **Guided tour** moves through all seven views. Switch between daylight, golden hour and dusk.
 
 ## Run locally
@@ -29,3 +30,17 @@ npm run check
 ```
 
 The browser model retains the source rooms, forest placements, guests, joinery, textures and courtyard layout. Browser lighting is configured in `app.js`. Third-party runtime licenses are in `vendor/`.
+
+
+## Surface and environment assets
+
+The viewer layers photo-derived PBR maps over the model’s original finishes. The maps and forest lighting below are from Poly Haven under CC0.
+
+- [Teak veneer](https://polyhaven.com/a/teak_veneer)
+- [Rough linen](https://polyhaven.com/a/rough_linen)
+- [Plastered wall](https://polyhaven.com/a/plastered_wall_02)
+- [Concrete floor](https://polyhaven.com/a/concrete_floor_02)
+- [Forest ground](https://polyhaven.com/a/forest_ground_04)
+- [Nature Reserve Forest HDRI](https://polyhaven.com/a/nature_reserve_forest)
+
+The pool uses a planar reflection with animated surface normals. The forest sway and water ripples respect the operating system’s reduced-motion setting.
