@@ -1,0 +1,1 @@
+{"name":"forest-sanctuary","private":true,"type":"module","scripts":{"check":"node --check app.js && node tools/check-model.mjs"}}
