@@ -66,6 +66,13 @@ function groundFinish(material, shade, grain) {
   material.customProgramCacheKey = () => `forest-ground-${grain}`;
 }
 
+function capturePointer(element, event) {
+  try { element.setPointerCapture(event.pointerId); }
+  catch (error) {
+    if (error.name !== 'InvalidStateError' && error.name !== 'NotFoundError') throw error;
+  }
+}
+
 async function start() {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
   const canvas = renderer.domElement;
@@ -340,7 +347,7 @@ async function start() {
   $('walk-controls').querySelectorAll('[data-move]').forEach(button => {
     const key = button.dataset.move;
     button.onpointerdown = event => {
-      button.setPointerCapture(event.pointerId);
+      capturePointer(button, event);
       pressed.add(key);
     };
     button.onpointerup = button.onpointercancel = button.onlostpointercapture = () => pressed.delete(key);
@@ -348,7 +355,7 @@ async function start() {
   canvas.addEventListener('pointerdown', event => {
     if (mode !== 'walk') return;
     canvas.focus({preventScroll:true});
-    canvas.setPointerCapture(event.pointerId);
+    capturePointer(canvas, event);
     drag = { x:event.clientX, y:event.clientY, moved:false };
   });
   canvas.addEventListener('pointermove', event => {
@@ -370,6 +377,7 @@ async function start() {
     drag = undefined;
   });
   canvas.addEventListener('pointercancel', () => { drag = undefined; });
+  canvas.addEventListener('pointerleave', () => { drag = undefined; });
   document.addEventListener('pointerlockchange', () => pressed.clear());
 
   goTo(0, true);
