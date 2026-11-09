@@ -1,5 +1,5 @@
-import { DoubleSide, Group, MeshStandardMaterial } from 'three';
-import { clothGrid, furnitureParts, outline } from './furniture-geometry.js';
+import { Group, MeshStandardMaterial } from 'three';
+import { furnitureParts, outline } from './furniture-geometry.js';
 
 function finishes() {
   const finish = (name, color, options) => new MeshStandardMaterial({ name, color, ...options });
@@ -12,8 +12,6 @@ function finishes() {
     taupe: finish('Taupe linen welt', 0x9c876f),
     olive: finish('Moss linen', 0x646a4d),
     flax: finish('Flax linen', 0xd4bd9b),
-    throw: finish('Olive textile throw', 0x737957, { side: DoubleSide }),
-    duvet: finish('Warm ivory linen duvet', 0xf0e6d7, { side: DoubleSide }),
     cane: finish('Natural rotan', 0xb8905e),
     darkCane: finish('Dark rotan', 0x8b6843),
     stone: finish('Honed travertine stone', 0xb39b7f),
@@ -40,61 +38,16 @@ function pillow(parts, material, at, size, angle = 0) {
   ]);
 }
 
-function bedding(parts, m) {
-  const hemmedCloth = (material, point) => {
-    parts.add(material, clothGrid(52, 44, point));
-    for (const x of [-1, 1]) {
-      parts.tube(material, Array.from({ length: 18 }, (_, i) => point(x, i / 17)), .0025);
-    }
-    parts.tube(material, Array.from({ length: 25 }, (_, i) => point(i / 12 - 1, 1)), .0025);
-  };
-  const duvet = (x, v) => {
-    const side = Math.max(0, (Math.abs(x) - .91) / .09);
-    const foot = Math.max(0, (v - .95) / .05);
-    const folds = .006 * Math.sin(17 * x + 8 * v) + .004 * Math.cos(28 * x - 11 * v);
-    return [
-      x * 1.02 + side * .007 * Math.sin(v * 23 + x * 2),
-      .518 + folds * (.25 + side + foot) - Math.max(.141 * side ** 1.55, .133 * foot ** 1.7),
-      -.46 + 1.495 * v + .008 * Math.sin(x * 7 + v * 2) * Math.max(foot, .15),
-    ];
-  };
-  const runner = (x, v) => {
-    const [px, y, z] = duvet(x, (.91 + v * .382) / 1.495);
-    return [px + .008 * x ** 11, y + .015 + .003 * Math.cos(x * 24 + v * 2), z];
-  };
-  hemmedCloth(m.duvet, duvet);
-  cushion(parts, m.ivory, [0, .521, -.43], [1.82, .072, .22], [.045, .01, 0]);
-  hemmedCloth(m.throw, runner);
-  for (let i = -24; i <= 24; i++) {
-    const [x, y, z] = runner(i / 24, 1);
-    parts.rod(m.olive, [x, y, z], [x + .005 * Math.sin(i), y - .004, z + .019], .0015, .0008, 5);
-  }
-}
-
-function bed(parts, m) {
-  parts.box(m.recess, [0, .072, 0], [1.72, .144, 1.82], .034);
-  parts.box(m.teak, [0, .191, 0], [1.97, .21, 2.04], .063);
-  parts.box(m.oat, [0, .251, 0], [1.92, .136, 1.99], .052);
-  cushion(parts, m.ivory, [0, .377, 0], [1.86, .227, 1.99]);
-  parts.tube(m.flax, outline(1.844, 1.977, .09, .43), .004, true);
+function bedJoinery(parts, m) {
+  parts.box(m.recess, [0, .06, -.02], [1.58, .12, 1.65], .046);
+  parts.box(m.teak, [0, .132, -.02], [1.76, .078, 1.83], .037);
+  parts.box(m.oat, [0, .237, -.02], [1.84, .234, 1.91], .113);
 
   parts.box(m.recess, [0, .765, -1.034], [2.83, 1.53, .105], .037);
   for (let index = -28; index <= 28; index++) {
     parts.box(index % 4 === 0 ? m.lightTeak : m.teak, [index * .048, .755, -.981],
       [.035, 1.42, .035], .011);
   }
-  for (const x of [-.602, 0, .602]) {
-    cushion(parts, m.oat, [x, .641, -.942], [.585, .64, .133]);
-  }
-
-  bedding(parts, m);
-
-  pillow(parts, m.ivory, [-.435, .582, -.682], [.781, .184, .458], .047);
-  pillow(parts, m.ivory, [.435, .579, -.685], [.78, .182, .458], -.058);
-  pillow(parts, m.flax, [-.42, .611, -.517], [.604, .153, .353], -.063);
-  pillow(parts, m.oat, [.436, .613, -.533], [.602, .155, .365], .071);
-  pillow(parts, m.olive, [-.025, .61, -.363], [.48, .145, .253], -.061);
-
   for (const x of [-1.164, 1.164]) {
     parts.box(m.teak, [x, .391, -.851], [.43, .17, .29], .019);
     parts.box(m.stone, [x, .494, -.849], [.47, .046, .332], .019);
@@ -355,7 +308,7 @@ function bathVanity(parts, m) {
   }
 }
 
-export function rebuildFurniture(model) {
+export function rebuildFurniture(model, bedding) {
   const m = finishes();
   const prototypes = new Map();
   const item = (name, at, build, yaw = 0) => {
@@ -372,6 +325,7 @@ export function rebuildFurniture(model) {
     }
     group.add(...prototypes.get(build).map(mesh => mesh.clone()));
     model.add(group);
+    return group;
   };
   const remove = names => names.forEach(name => model.getObjectByName(name)?.removeFromParent());
   const retain = (name, materials) => {
@@ -417,7 +371,8 @@ export function rebuildFurniture(model) {
     const bedroom = `Bedroom_${side}_-_`;
     remove([`${bedroom}Bed_and_headboard`]);
     retain(`${bedroom}Wardrobe_and_dressing`, /Natural ivory linen/);
-    item(`${bedroom}King bed and bedside furniture`, [bedX, .452, -12.28], bed);
+    const bed = item(`${bedroom}King bed and bedside furniture`, [bedX, .452, -12.28], bedJoinery);
+    bed.add(bedding.clone());
     item(`${side} suite fluted wardrobe`, [robeX, .452, -12.50], robe, direction * Math.PI / 2);
     item(`${bedroom}Dressing console and mirror`, [dressingX, .452, -12.872], dressing, -direction * Math.PI / 2);
     item(`${side} suite dressing stool`, [stoolX, .452, -12.85], dressingStool);

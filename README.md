@@ -29,7 +29,7 @@ gltfpack -i /tmp/forest-resized.glb -o assets/sanctuary.glb -cc -kn -km
 npm run check
 ```
 
-The browser model supplies the rooms, courtyard, forest placements and architecture. The viewer builds the furniture in `furniture.js` over that model, including the upholstery, woven cane and cabinetry. Browser lighting is configured in `app.js`. Third-party runtime licenses are in `vendor/`.
+The browser model supplies the rooms, courtyard, forest placements and architecture. The viewer assembles the furniture in `furniture.js` over that model, including the upholstery, woven cane, cabinetry and a shared GLB for the suite bedding. Browser lighting is configured in `app.js`. Third-party runtime licenses are in `vendor/`.
 
 
 ## Surface and environment assets
@@ -44,3 +44,8 @@ The viewer layers photo-derived PBR maps over the model’s original finishes. T
 - [Nature Reserve Forest HDRI](https://polyhaven.com/a/nature_reserve_forest)
 
 The pool uses a planar reflection with animated surface normals. The forest sway and water ripples respect the operating system’s reduced-motion setting.
+
+
+## Bedroom asset credit
+
+The duvet, fitted sheet and pillows in `assets/suite-bed-linen.glb` are adapted from [Bed by khanhnguyen1189](https://sketchfab.com/3d-models/bed-403c4a48e5ea4a9fbbb9a096d90973af), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The bedding was separated from the original frame, resized, refinished in linen and compressed with meshopt for the walkthrough.

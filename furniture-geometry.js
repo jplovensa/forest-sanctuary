@@ -1,5 +1,5 @@
 import {
-  BoxGeometry, BufferGeometry, CatmullRomCurve3, CylinderGeometry, Float32BufferAttribute,
+  BoxGeometry, CatmullRomCurve3, CylinderGeometry,
   LatheGeometry, Matrix4, Euler, Mesh, Quaternion, TubeGeometry, Vector2, Vector3,
 } from 'three';
 import { mergeGeometries } from './vendor/BufferGeometryUtils.js';
@@ -44,25 +44,6 @@ export function roundedBox([width, height, depth], radius, sculpt) {
       normal.setXYZ(index, sum.x, sum.y, sum.z);
     });
   }
-  return geometry;
-}
-
-export function clothGrid(columns, rows, point) {
-  const positions = [];
-  const indices = [];
-  for (let row = 0; row <= rows; row++) {
-    for (let col = 0; col <= columns; col++) {
-      positions.push(...point(2 * col / columns - 1, row / rows));
-      if (row === rows || col === columns) continue;
-      const a = row * (columns + 1) + col;
-      const b = a + columns + 1;
-      indices.push(a, b, a + 1, a + 1, b, b + 1);
-    }
-  }
-  const geometry = new BufferGeometry();
-  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
-  geometry.setIndex(indices);
-  geometry.computeVertexNormals();
   return geometry;
 }
 

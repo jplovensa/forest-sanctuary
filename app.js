@@ -17,8 +17,8 @@ const stops = [
   { name: 'The courtyard', nav: 'Tree courtyard', type: 'Courtyard', desc: 'A teak lounge beside the reflection pool and the tree that rises through the roof.', eye: [15.6,5.5,2.45], at: [12.86,6.78,1.07], walk: [15.9,5.35,1.72] },
   { name: 'Living & dining', nav: 'Living & dining', type: 'Pavilion 01', desc: 'Woven cane, oiled teak and a linen lounge face the courtyard.', eye: [15.8,8.63,1.75], at: [13.58,10.53,1.12] },
   { name: 'The kitchen', nav: 'Kitchen pavilion', type: 'Pavilion 02', desc: 'A concrete bar for two, a teak coffee recess and a separate cooking run.', eye: [23,6.18,2.08], at: [19.95,7.36,1.45] },
-  { name: 'West garden suite', nav: 'West garden suite', type: 'Pavilion 03', desc: 'A linen-dressed king bed looks through full-height glazing into the forest.', eye: [9.05,10.44,1.99], at: [6.64,12.1,1.31] },
-  { name: 'East garden suite', nav: 'East garden suite', type: 'Pavilion 04', desc: 'A fluted teak headboard, travertine nightstands and an uninterrupted garden view.', eye: [18.07,10.46,1.99], at: [20.48,12.1,1.31] },
+  { name: 'West garden suite', nav: 'West garden suite', type: 'Pavilion 03', desc: 'A linen-dressed king bed looks through full-height glazing into the forest.', eye: [9.05,10.44,1.99], at: [6.64,12.1,1.16] },
+  { name: 'East garden suite', nav: 'East garden suite', type: 'Pavilion 04', desc: 'A fluted teak headboard, travertine nightstands and an uninterrupted garden view.', eye: [18.07,10.46,1.99], at: [20.48,12.1,1.16] },
   { name: 'The bathing pavilion', nav: 'Bathing pavilion', type: 'Pavilion 05', desc: 'A twin-basin teak vanity and a stone soaking tub share the bathing pavilion.', eye: [9.19,6.18,2.03], at: [7.32,7.63,1.35] },
 ];
 const lighting = {
@@ -133,10 +133,12 @@ async function start() {
     plan.updateProjectionMatrix();
   }
 
-  const [gltf, maps, environment] = await Promise.all([
-    new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync('./assets/sanctuary.glb', event => {
+  const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+  const [gltf, bedding, maps, environment] = await Promise.all([
+    loader.loadAsync('./assets/sanctuary.glb', event => {
       if (event.lengthComputable) $('progress').value = Math.min(88, event.loaded / event.total * 88);
     }),
+    loader.loadAsync('./assets/suite-bed-linen.glb'),
     loadSurfaceMaps(renderer.capabilities.getMaxAnisotropy()),
     new RGBELoader().loadAsync('./assets/pbr/forest.hdr'),
   ]);
@@ -147,7 +149,11 @@ async function start() {
   for (const person of [...model.children]) {
     if (/guest/i.test(person.name) && person.name !== 'Living_Pavilion_-_Guest') person.removeFromParent();
   }
-  rebuildFurniture(model);
+  // Keep the two-sided cloth visible while using its back faces for shadow casting.
+  bedding.scene.traverse(part => {
+    if (part.isMesh) part.material.shadowSide = THREE.BackSide;
+  });
+  rebuildFurniture(model, bedding.scene);
   model.updateMatrixWorld(true);
   scene.add(model);
   const { roof, canopies, slidingLeaves, ceiling, screen } = prepareVisibility(model);
