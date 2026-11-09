@@ -4,7 +4,7 @@ A playable 3D walkthrough of the Fjäll Forest Resort, exported from the furnish
 
 - **Orbit** to inspect the model, or choose one of seven saved views.
 - **Plan** reveals the pavilions from above.
-- **Walk** uses WASD or arrow keys and mouse look, with drag and movement controls on touch screens. Pavilion glazing is hidden in Walk mode to leave the entrances open.
+- **Walk** uses WASD or arrow keys and mouse look, with drag and movement controls on touch screens. The sliding door leaves are hidden in Walk mode to leave the entrances open, with the fixed tracks and frames visible.
 - **Guided tour** moves through all seven views. Switch between daylight, golden hour and dusk.
 
 ## Run locally

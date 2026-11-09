@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
 import { GLTFLoader } from './vendor/GLTFLoader.js';
 import { MeshoptDecoder } from './vendor/meshopt_decoder.mjs';
+import { prepareVisibility } from './viewer-geometry.js';
 
 // Coordinates are in metres, converted from Blender's Z-up scene.
 const vector = ([x, y, z]) => new THREE.Vector3(x, z, -y);
@@ -26,16 +27,12 @@ const phone = matchMedia('(max-width: 680px)');
 const pressed = new Set();
 let mode = 'orbit';
 let activeStop = 0;
-let roof;
-let soffit;
-let canopies;
 let animation;
 let tourTimer;
 let drag;
 let yaw = 0;
 let pitch = 0;
 const obstacles = [];
-const doorGroups = [];
 const ray = new THREE.Raycaster();
 const look = new THREE.Vector3();
 const movement = new THREE.Vector3();
@@ -122,9 +119,8 @@ async function start() {
   const model = gltf.scene;
   model.updateMatrixWorld(true);
   scene.add(model);
-  roof = model.getObjectByName('SharedRoof');
-  canopies = model.getObjectByName('ForestCanopies');
-  soffit = model.getObjectByName('Living_pavilion_soffit') || model.getObjectByName('Living pavilion soffit');
+  const { roof, canopies, slidingLeaves, ceiling, screen } = prepareVisibility(model);
+  if (screen) obstacles.push(screen);
   model.traverse(object => {
     if (!object.isMesh) return;
     const material = object.material;
@@ -137,15 +133,13 @@ async function start() {
     if (/forest floor/i.test(material.name)) {
       material.color.lerp(new THREE.Color(0x48513b), .35);
     }
-    const largeCanopy = object.isInstancedMesh && object.count > 15;
+    const largeCanopy = canopies.includes(object);
     object.castShadow = !material.transparent && !largeCanopy;
     object.receiveShadow = !material.transparent && !foliage;
   });
   const label = object => object.name.replaceAll('_', ' ');
-  const glassNames = ['West suite glazing','East suite glazing','Living room glazing','Bath glazing','Kitchen glazing'];
   model.traverse(object => {
     const name = label(object);
-    if (glassNames.includes(name)) doorGroups.push(object);
     if (/pavilion shell|garden suite shell|WC privacy enclosure|Living pavilion screens/i.test(name)) {
       object.traverse(child => { if (child.isMesh && !child.isInstancedMesh) obstacles.push(child); });
     }
@@ -173,9 +167,9 @@ async function start() {
 
   function refreshGeometry() {
     if (roof) roof.visible = mode !== 'plan' && !$('cutaway').checked;
-    if (soffit) soffit.visible = mode !== 'plan' && !$('cutaway').checked;
-    if (canopies) canopies.visible = mode !== 'plan';
-    doorGroups.forEach(door => { door.visible = mode !== 'walk'; });
+    if (ceiling) ceiling.visible = mode !== 'plan' && !$('cutaway').checked;
+    canopies.forEach(batch => { batch.visible = mode !== 'plan'; });
+    slidingLeaves.forEach(batch => { batch.visible = mode === 'orbit'; });
   }
   function turn(dx, dy) {
     yaw -= dx * .003;

@@ -22,11 +22,14 @@ for (const required of [
   'Bedroom West - Guest', 'Bedroom East - Guest', 'Kitchen Pavilion - Guest',
   'Bath Pavilion - Guest', 'Living Pavilion - Guest',
 ]) assert.ok(names.has(required), `Missing node: ${required}`);
-const largestBatch = Math.max(...model.nodes.flatMap(node => {
+const canopyBatches = model.nodes.flatMap(node => {
   const instances = node.extensions?.EXT_mesh_gpu_instancing;
-  return instances ? [model.accessors[instances.attributes.TRANSLATION].count] : [];
-}));
-assert.ok(largestBatch >= 47);
+  if (!instances) return [];
+  const material = model.materials[model.meshes[node.mesh].primitives[0].material];
+  return material.name.startsWith('Terminalia Catappa') ? [model.accessors[instances.attributes.TRANSLATION].count] : [];
+});
+assert.equal(canopyBatches.length, 4);
+assert.ok(canopyBatches.every(count => count === 51));
 await MeshoptDecoder.ready;
 let decoded = 0;
 for (const view of model.bufferViews) {
@@ -39,4 +42,4 @@ for (const view of model.bufferViews) {
   decoded++;
 }
 assert.ok(decoded > 0);
-console.log(`Verified ${model.meshes.length} meshes, ${model.images.length} textures, ${largestBatch} canopy instances and ${decoded} compressed data blocks.`);
+console.log(`Verified ${model.meshes.length} meshes, ${model.images.length} textures, ${canopyBatches[0]} trees in linked canopy batches and ${decoded} compressed data blocks.`);
